@@ -19,7 +19,7 @@ enum class AlignFlags : uint8_t {
     DISCRETE = 4
 };
 
-struct WStatus {
+struct FontFlags {
     bool bold = false;
     bool italic = false;
     bool underlined = false;
@@ -31,7 +31,7 @@ struct WStatus {
     QColor bgColor = QColor(255, 255, 255);
     QColor fgColor = QColor(0, 0, 0);
     AlignFlags align = AlignFlags::LEFT;
-    QString font = "Consolas";
+    QString font = "宋体";
 };
 
 #endif

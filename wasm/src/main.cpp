@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QMainWindow>
 #include <QString>
+#include <qlogging.h>
 #include <qmainwindow.h>
 #include "Theme.hpp"
 #include "word/WordEditor.hpp"
@@ -22,6 +23,9 @@ int main(int argc, char** argv) {
             if (p.endsWith(".docx")) {
                 WordEditor *editor = new WordEditor(p);
                 win->setCentralWidget(editor);
+            } else {
+                qCritical() << "Unsupport format for:" << argv[i];
+                return 1;
             }
             win->resize(900, 600);
             win->show();
