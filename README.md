@@ -32,5 +32,4 @@ VCOffice 是一个轻量级的 VS Code 扩展，旨在为开发者和文档工�
     - `.dps`
     - `.odp`
     - `.key`
-
 ---
