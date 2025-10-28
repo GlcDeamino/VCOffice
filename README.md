@@ -10,7 +10,7 @@ VCOffice 是一个轻量级的 VS Code 扩展，旨在为开发者和文档工�
 - VCOffice 不需要安装额外应用程序，只需要作为扩展安装到 VS Code 发行版。
 - VCOffice 计划支持完整的 Word、Excel、PowerPoint 预览以及编辑，并计划支持播放 PowerPoint。
 - VCOffice 不会包含商业行为。
-- VCOffice 计划开源并选择一合理许可。
+- VCOffice 使用 Apache 2.0 许可开源。
 
 ---
 ## 计划支持：
