@@ -2,15 +2,20 @@
 #define RT_HPP
 
 #include <QGraphicsItem>
-#include "./../../common/FontFlags.hpp"
+#include "FontFlags.hpp"
+#include "WordEditor.hpp"
+#include "word_item/RichText.hpp"
 
 class RT : public QGraphicsItem {
 public:
-    RT();
-    FontFlags f;
+    RT(RichText* n, WordEditor* editor, QString s);
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
     QRectF boundingRect() const override;
-    QString ctx;
+    RichText* node;
+    WordEditor* p_editor;
+    QString s;
+    static qreal strWidth(QString str, FontFlags rPr);
+    static qreal fontHeight(FontFlags rPr);
 };
 
 #endif

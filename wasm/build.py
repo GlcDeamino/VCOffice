@@ -89,12 +89,12 @@ def build(build_type):
     run_command(cmd)
 
 def deploy():
-    exe_path = BUILD_DIR / "VCOffice.exe"
+    exe_path = BUILD_DIR / "bin" / "VCOffice.exe"
     if not exe_path.exists():
         print("VCOffice.exe 不存在")
         return
 
-    # 获取可执行文件所在目录（即 build/）
+    # 获取可执行文件所在目录（即 build/bin）
     target_dir = exe_path.parent
 
     print(f"部署到目录: {target_dir}")
@@ -124,8 +124,6 @@ def deploy():
     runtime_dlls = [
         "libc++.dll",
         "libunwind.dll",
-        # 可选：如果使用 libc++abi
-        # "libc++abi.dll",
     ]
 
     # --- 4. 复制 DLL ---

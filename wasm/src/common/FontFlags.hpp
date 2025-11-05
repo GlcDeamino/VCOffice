@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <QColor>
 #include <qcolor.h>
+#include <sstream>
 
 enum class SubscriptStatus : uint8_t {
     NONE = 0,
@@ -11,27 +12,121 @@ enum class SubscriptStatus : uint8_t {
     LOWER = 2
 };
 
-enum class AlignFlags : uint8_t {
-    LEFT = 0,
-    RIGHT = 1,
-    CENTER = 2,
-    BOTH = 3,
-    DISCRETE = 4
+enum class UnderlineStatus : uint8_t {
+    NONE = 0,
+    SINGLE = 1,
+    DOUBLE = 2,
+    DOTTED = 3,
+    DASH = 4
+};
+
+enum class ShaderStatus : uint8_t {
+    NONE = 0,
+    SOLID = 1
 };
 
 struct FontFlags {
+public:
+    FontFlags() = default;
+    
     bool bold = false;
     bool italic = false;
-    bool underlined = false;
-    bool strikethroth = false;
-    bool hasSdL = false;
+    UnderlineStatus underline = UnderlineStatus::NONE;
+    bool strikethrough = false;
+    ShaderStatus shader = ShaderStatus::NONE;
     bool boardered = false;
     SubscriptStatus subscriptStatus = SubscriptStatus::NONE;
-    double fontSize = 11;
+    double fontSize = 10.5;
     QColor bgColor = QColor(255, 255, 255);
     QColor fgColor = QColor(0, 0, 0);
-    AlignFlags align = AlignFlags::LEFT;
     QString font = "宋体";
+
+    QString toStr() {
+        QString s;
+        s.append("+-------------------------+\n");
+        s.append("|FontFlag:                |\n");
+        s.append("|  - bold:         [bol]  |\n");
+        s.append("|  - italic:       [ita]  |\n");
+        s.append("|  - underline:   [unde]  |\n");
+        s.append("|  - strike:       [sti]  |\n");
+        s.append("|  - shader:       [sha]  |\n");
+        s.append("|  - boardered:    [bor]  |\n");
+        s.append("|  - subscript:    [sub]  |\n");
+        s.append("|  - fontsize:     [fos]  |\n");
+        s.append("|  - background: [bgcol]  |\n");
+        s.append("|  - foreground: [fgcol]  |\n");
+        s.append("+-------------------------+");
+
+        if (bold) {
+            s.replace("[bol]", " TRUE");
+        }
+        else {
+            s.replace("[bol]", "FALSE");
+        }
+
+        if (italic) {
+            s.replace("[ita]", " TRUE");
+        } else {
+            s.replace("[ita]", "FALSE");
+        }
+
+        switch (underline) {
+            case UnderlineStatus::NONE:
+                s.replace("[unde]", "  NONE");
+            case UnderlineStatus::SINGLE:
+                s.replace("[unde]", "SINGLE");
+            case UnderlineStatus::DOUBLE:
+                s.replace("[unde]", "DOUBLE");
+            case UnderlineStatus::DOTTED:
+                s.replace("[unde]", "DOTTED");
+            case UnderlineStatus::DASH:
+                s.replace("[unde]", "  DASH");
+        }
+
+        if (strikethrough) {
+            s.replace("[sti]", " TRUE");
+        } else {
+            s.replace("[sti]", "FALSE");
+        }
+
+        switch (shader) {
+            case ShaderStatus::NONE:
+                s.replace("[sha]", " NONE");
+            case ShaderStatus::SOLID:
+                s.replace("[sha]", "SOLID");
+        }
+
+        if (boardered) {
+            s.replace("[bor]", " TRUE");
+        } else {
+            s.replace("[bor]", "FALSE");
+        }
+
+        switch (subscriptStatus) {
+            case SubscriptStatus::NONE:
+                s.replace("[sub]", " NONE");
+            case SubscriptStatus::UPPER:
+                s.replace("[sub]", "UPPER");
+            case SubscriptStatus::LOWER:
+                s.replace("[sub]", "LOWER");
+        }
+
+        s.replace("[fos]", formatDouble(fontSize));
+
+        s.replace("[bgcol]", bgColor.name());
+
+        s.replace("[fgcol]", fgColor.name());
+
+        return s;
+    }
+private:
+    QString formatDouble(double d) {
+        std::ostringstream oss;
+        oss << d;
+        std::string s = oss.str();
+        if (s.length() > 5) s = s.substr(0, 5);
+        return (std::string(5 - s.length(), ' ') + s).c_str();
+    }
 };
 
 #endif

@@ -4,8 +4,8 @@
 #include <qevent.h>
 #include <qtmetamacros.h>
 #include <qwidget.h>
-#include "start/ClipboardSec.hpp"
-#include "start/FontSec.hpp"
+#include <start/ClipboardSec.hpp>
+#include <start/FontSec.hpp>
 class StartTab : public QWidget {
     Q_OBJECT
 public:

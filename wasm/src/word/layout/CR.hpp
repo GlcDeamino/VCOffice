@@ -1,15 +1,15 @@
-#ifndef PAGE_HPP
-#define PAGE_HPP
+#ifndef CR_HPP
+#define CR_HPP
 
 #include <QGraphicsItem>
-#include <word_item/Section.hpp>
+#include "WordEditor.hpp"
 
-class Page : public QGraphicsItem {
+class CR : public QGraphicsItem {
 public:
-    Page(Section* sec);
+    CR(WordEditor* editor);
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
     QRectF boundingRect() const override;
-    Section* sec;
+    WordEditor* p_editor;
 };
 
 #endif

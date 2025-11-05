@@ -2,7 +2,7 @@
 #define FONT_SEC_HPP
 
 #include <qevent.h>
-#include "./../../../common/RTbutton.hpp"
+#include <RTButton.hpp>
 #include <qtmetamacros.h>
 #include <QWidget>
 #include <QFontComboBox>
