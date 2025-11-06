@@ -1,5 +1,5 @@
 #include "docx_decoder.hpp"
-#include <FontFlags.hpp>
+#include <RunProperties.hpp>
 #include "WordEditor.hpp"
 #include "decompressor.hpp"
 #include <QDir>
@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QDomDocument>
 #include <QColor>
+#include <qdom.h>
 #include <qlogging.h>
 #include <qnamespace.h>
 #include "word_item/LF.hpp"
@@ -18,29 +19,27 @@ static QColor parseColorValue(const QString& val) {
     if (val.isEmpty() || val == "auto") {
         return Qt::transparent; // 无效或自动色
     }
-    // 检查是否为纯十六进制
-    bool allHex = true;
     for (QChar c : val) {
         if (!c.isLetterOrNumber() || (c.toLower() < 'a' || c.toLower() > 'f') && !c.isDigit()) {
-            allHex = false;
-            break;
+            goto not_hex; // 这样写可以省去一个 bool 标记，从而省去 1 字节的内存开销
+                          // 大文档可能会有大量颜色需要解析，且 bool 可能被对齐的更大
+                          // 谁知道编译器会不会因为一些问题抽风没把标记位优化掉
         }
     }
-    if (allHex && val.length() == 6) {
-        return QColor("#" + val);
-    }
+    return QColor("#" + val);
+    not_hex: // 禁止在其它位置 goto 本标签
     // 否则尝试 Qt 颜色名称（如 "red", "yellow"）
     QColor namedColor(val);
     if (namedColor.isValid()) {
         return namedColor;
     }
-    // 默认返回透明（或可记录警告）
+    // 默认返回透明
     qWarning() << "[Decoder] Unrecognized color value:" << val;
     return QColor();
 }
 
-// 辅助：解析 <w:rPr> 中的属性到 FontFlags（增量覆盖）
-static void parseRunProperties(const QDomNode& rPrNode, FontFlags& rPr) {
+// 辅助：解析 <w:rPr> 中的属性到 RunProperties（增量覆盖）
+static void parseRunProperties(const QDomNode& rPrNode, RunProperties& rPr) {
     for (int i = 0; i < rPrNode.childNodes().count(); ++i) {
         QDomNode propNode = rPrNode.childNodes().at(i);
         QString name = propNode.nodeName();
@@ -72,6 +71,8 @@ static void parseRunProperties(const QDomNode& rPrNode, FontFlags& rPr) {
                 rPr.font = elem.attribute(fontAttr);
             }
             // 可扩展 ascii, hAnsi 等
+        } else if (name == "w:sz") {
+            rPr.fontSize = val.toDouble() / 2;
         }
         // 其他属性可后续添加
     }
@@ -79,34 +80,57 @@ static void parseRunProperties(const QDomNode& rPrNode, FontFlags& rPr) {
 
 // 辅助：解析 styles.xml，提取字符样式和段落默认文本样式
 static void parseStyles(const QDomDocument& stylesDom,
-                        QHash<QString, FontFlags>& charStyles,
-                        QHash<QString, FontFlags>& paraDefaultRPrs) {
+                        QHash<QString, RunProperties>& charStyles,
+                        QHash<QString, RunProperties>& paraDefaultRPrs,
+                        RunProperties& docDefaultRPr,
+                        QHash<QString, QColor>& paraFills) {
     QDomNodeList styleNodes = stylesDom.elementsByTagName("w:style");
+    for (int i = 0; i < styleNodes.count(); ++i) {
+        QDomElement styleElem = styleNodes.at(i).toElement();
+        bool isDefault = styleElem.attribute("w:default", "0").toInt();
+        if (isDefault) {
+            QDomElement rPrElem = styleElem.firstChildElement("w:rPr");
+            if (rPrElem.isNull()) continue;
+
+            RunProperties flags;
+            parseRunProperties(rPrElem,flags);
+            docDefaultRPr = flags;
+        }
+    }
     for (int i = 0; i < styleNodes.count(); ++i) {
         QDomElement styleElem = styleNodes.at(i).toElement();
         QString type = styleElem.attribute("w:type");
         QString styleId = styleElem.attribute("w:styleId");
+        
         if (styleId.isEmpty()) continue;
 
         QDomElement rPrElem = styleElem.firstChildElement("w:rPr");
         if (rPrElem.isNull()) continue;
 
-        FontFlags flags;
-        parseRunProperties(rPrElem, flags);
+        RunProperties flags = docDefaultRPr;
+        parseRunProperties(rPrElem,flags);
 
         if (type == "character") {
             charStyles.insert(styleId, flags);
         } else if (type == "paragraph") {
             paraDefaultRPrs.insert(styleId, flags);
         }
+
+        QDomElement pPrElem = styleElem.firstChildElement("w:pPr");
+        if (pPrElem.isNull()) continue;
+        QDomElement pShdNode = pPrElem.firstChildElement("w:shd");
+        if (!pShdNode.isNull()) {
+            QColor fill = parseColorValue(pShdNode.attribute("w:fill", "auto"));
+            paraFills.insert(styleId, fill);
+        }
     }
 }
 
 // 辅助：解析单个 <w:r>（run）
-static RichText* parseRun(const QDomNode& runNode,
+static void parseRun(const QDomNode& runNode,
                           Paragraph* parent,
-                          const QHash<QString, FontFlags>& charStyles,
-                          const FontFlags& defaultParaRPr) {
+                          const QHash<QString, RunProperties>& charStyles,
+                          const RunProperties& defaultParaRPr) {
     auto* richtext = new RichText(parent);
     richtext->rPr = defaultParaRPr; // 初始化为段落默认样式
 
@@ -145,9 +169,8 @@ static RichText* parseRun(const QDomNode& runNode,
     // 设置文本内容
     if (!textNode.isNull()) {
         richtext->t = textNode.toElement().text();
+        parent->append(richtext);
     }
-
-    return richtext;
 }
 
 // 辅助：解析 <w:sectPr> 到 Section
@@ -193,14 +216,17 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
     }
 
     // === Step 1: 加载并解析 styles.xml（如果存在）===
-    QHash<QString, FontFlags> charStyles;
-    QHash<QString, FontFlags> paraDefaultRPrs;
+    QHash<QString, RunProperties> charStyles;
+    QHash<QString, RunProperties> paraDefaultRPrs;
+    QHash<QString, QColor> paraFills;
+
+    RunProperties docDefaultRPr;
 
     QFile stylesFile(tmpDir + "/word/styles.xml");
     if (stylesFile.open(QIODevice::ReadOnly)) {
         QDomDocument stylesDom;
         if (stylesDom.setContent(&stylesFile)) {
-            parseStyles(stylesDom, charStyles, paraDefaultRPrs);
+            parseStyles(stylesDom, charStyles, paraDefaultRPrs, docDefaultRPr, paraFills);
         }
         stylesFile.close();
     } else {
@@ -232,6 +258,11 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
 
     // 初始化第一个节
     Section* currentSection = new Section();
+    for (QDomNode node : docBody.childNodes()) {
+        if (node.nodeName() == "w:sectPr") {
+            parseSectionProperties(node, currentSection);
+        }
+    }
 
     // 遍历 body 的所有子节点
     for (int i = 0; i < docBody.childNodes().count(); ++i) {
@@ -242,7 +273,7 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
             Paragraph* paragraph = new Paragraph();
 
             // 确定段落默认文本样式（来自 w:pStyle）
-            FontFlags paraDefaultRPr;
+            RunProperties paraDefaultRPr;
             QDomElement pPr = node.toElement().firstChildElement("w:pPr");
             if (!pPr.isNull()) {
                 QDomElement pStyleNode = pPr.firstChildElement("w:pStyle");
@@ -250,40 +281,21 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
                     QString styleId = pStyleNode.attribute("w:val");
                     if (paraDefaultRPrs.contains(styleId)) {
                         paraDefaultRPr = paraDefaultRPrs.value(styleId);
+                    } else {
+                        paraDefaultRPr = docDefaultRPr;
                     }
+                    if (paraFills.contains(styleId)) {
+                        paragraph->fill = paraFills.value(styleId);
+                    } else {
+                        paragraph->fill = parseColorValue("auto");
+                    }
+                } else {
+                    paraDefaultRPr = docDefaultRPr;
+                    paragraph->fill = parseColorValue("auto");
                 }
-                QDomElement pBdrNode = pPr.firstChildElement("w:pBdr");
-                if (!pBdrNode.isNull()) {
-                    // 假设边框四边一致，取任意一个方向（如 top）或合并逻辑
-                    // 这里我们遍历所有子边框，取第一个有效的（或后续支持四边）
-                    for (int b = 0; b < pBdrNode.childNodes().count(); ++b) {
-                        QDomNode borderNode = pBdrNode.childNodes().at(b);
-                        QString side = borderNode.nodeName(); // e.g., "w:top", "w:left", etc.
-
-                        // 为简化，我们只处理一个方向（比如 top），或统一应用到所有边
-                        // 实际应用中建议分别存储四边
-                        if (side == "w:top" || side == "w:left" || side == "w:right" || side == "w:bottom") {
-                            QDomElement elem = borderNode.toElement();
-                            QString val = elem.attribute("w:val");
-                            QString sz = elem.attribute("w:sz");
-                            QString colorVal = elem.attribute("w:color");
-
-                            ParagraphBorder& bdr = paragraph->border; // 统一边框
-
-                            if (val == "single") bdr.style = BorderStyle::SINGLE;
-                            else if (val == "double") bdr.style = BorderStyle::DOUBLE;
-                            else if (val == "dotted") bdr.style = BorderStyle::DOTTED;
-                            else if (val == "dashed") bdr.style = BorderStyle::DASHED;
-                            else if (val == "nil" || val == "none") bdr.style = BorderStyle::NONE;
-                            else bdr.style = BorderStyle::SINGLE; // 默认 fallback
-
-                            bdr.size = sz.toInt(); // 单位：1/8 pt
-                            bdr.color = parseColorValue(colorVal);
-
-                            // 如果只取一个方向（如 top），可 break；否则需分别存储四边
-                            // break; // 可选：只取第一个边框定义
-                        }
-                    }
+                QDomElement pShdNode = pPr.firstChildElement("w:shd");
+                if (!pShdNode.isNull()) {
+                    paragraph->fill = parseColorValue(pShdNode.attribute("w:fill", "auto"));
                 }
             }
 
@@ -291,8 +303,7 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
             for (int j = 0; j < node.childNodes().count(); ++j) {
                 QDomNode child = node.childNodes().at(j);
                 if (child.nodeName() == "w:r") {
-                    RichText* rt = parseRun(child, paragraph, charStyles, paraDefaultRPr);
-                    paragraph->append(rt);
+                    parseRun(child, paragraph, charStyles, paraDefaultRPr);
                 } else if (child.nodeName() == "w:br") {
                     // 段落级换行
                     auto* lf = new LF();

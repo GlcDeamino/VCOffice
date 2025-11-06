@@ -24,14 +24,15 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="px"
      inkscape:zoom="18.3125"
-     inkscape:cx="15.945392"
-     inkscape:cy="16.109215"
+     inkscape:cx="-1.8020478"
+     inkscape:cy="18.40273"
      inkscape:window-width="1440"
      inkscape:window-height="830"
      inkscape:window-x="-6"
      inkscape:window-y="-6"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="layer1"
+     showgrid="false" />
   <defs
      id="defs1" />
   <g
@@ -39,8 +40,12 @@
      inkscape:groupmode="layer"
      id="layer1">
     <path
+       id="rect1-8"
+       style="fill:#ffffff"
+       d="M 0,0 22.626953,22.626953 H 9.3730471 L 0,32 Z" />
+    <path
        id="rect1"
        style="fill:#000000"
-       d="M 0,0 22.626953,22.626953 H 9.3730471 L 0,32 Z" />
+       d="M 1,2 20.626953,21.626953 H 8.8730471 L 1,30 Z" />
   </g>
 </svg>

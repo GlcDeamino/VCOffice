@@ -6,6 +6,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(CMAKE_BUILD_TYPE Release)
+else()
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Xml Svg)
 qt_standard_project_setup()
 

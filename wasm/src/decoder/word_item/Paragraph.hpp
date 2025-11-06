@@ -32,6 +32,7 @@ public:
     virtual void append(OfficeItem* item) override;
 
     ParagraphBorder border;
+    QColor fill;
 };
 
 #endif

@@ -16,7 +16,8 @@ void Para::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWid
     if (!painter || !widget || widget->width() * widget->height() == 0 || !scene()) return;
     painter->save();
     painter->setPen(Qt::NoPen);
-    painter->setBrush(para->border.color);
+    painter->setBrush(para->fill);
+    if (para->fill == Qt::transparent) painter->setBrush(Qt::NoBrush);
     painter->drawRect(boundingRect());
     painter->restore();
 }

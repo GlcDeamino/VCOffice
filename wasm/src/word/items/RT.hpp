@@ -2,7 +2,7 @@
 #define RT_HPP
 
 #include <QGraphicsItem>
-#include "FontFlags.hpp"
+#include "RunProperties.hpp"
 #include "WordEditor.hpp"
 #include "word_item/RichText.hpp"
 
@@ -14,8 +14,8 @@ public:
     RichText* node;
     WordEditor* p_editor;
     QString s;
-    static qreal strWidth(QString str, FontFlags rPr);
-    static qreal fontHeight(FontFlags rPr);
+    static qreal strWidth(QString str, RunProperties rPr);
+    static qreal fontHeight(RunProperties rPr);
 };
 
 #endif

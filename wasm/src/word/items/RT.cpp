@@ -1,5 +1,5 @@
 #include "RT.hpp"
-#include "FontFlags.hpp"
+#include "RunProperties.hpp"
 #include "WordEditor.hpp"
 #include "word_item/RichText.hpp"
 #include <QPainter>
@@ -15,7 +15,7 @@ void RT::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidge
     if (!painter || !widget || widget->width() * widget->height() == 0 || !scene()) return;
 
     painter->save();
-    FontFlags& rPr = node->rPr;
+    RunProperties& rPr = node->rPr;
 
     QFont font;
     font.setFamily(rPr.font);
@@ -39,12 +39,15 @@ void RT::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidge
     }
 
     // 背景填充
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(rPr.bgColor);
-    painter->drawRect(boundingRect());
+    if (!(rPr.bgColor == Qt::transparent)) {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(rPr.bgColor);
+        painter->drawRect(boundingRect());
+    }
 
     // 设置前景色和字体
     painter->setPen(rPr.fgColor);
+    painter->setBrush(rPr.fgColor);
     painter->setFont(font);
 
     // 绘制文字（基线位置）
@@ -64,7 +67,7 @@ void RT::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidge
 }
 
 QRectF RT::boundingRect() const {
-    FontFlags& rPr = node->rPr;
+    RunProperties& rPr = node->rPr;
     QFont font;
     font.setFamily(rPr.font);
     font.setBold(rPr.bold);
@@ -86,7 +89,7 @@ QRectF RT::boundingRect() const {
     return QRectF(0, 0, w + 1, h + 1); // +1 是为了 anti-aliasing 或边框留空间
 }
 
-qreal RT::strWidth(QString str, FontFlags rPr) {
+qreal RT::strWidth(QString str, RunProperties rPr) {
     QFont font;
     font.setFamily(rPr.font);
     font.setBold(rPr.bold);
@@ -104,7 +107,7 @@ qreal RT::strWidth(QString str, FontFlags rPr) {
     return w;
 }
 
-qreal RT::fontHeight(FontFlags rPr) {
+qreal RT::fontHeight(RunProperties rPr) {
     QFont font;
     font.setFamily(rPr.font);
     font.setBold(rPr.bold);

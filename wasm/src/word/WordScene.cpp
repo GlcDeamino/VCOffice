@@ -2,6 +2,8 @@
 #include "isType.hpp"
 #include "items/RT.hpp"
 #include "layout/Page.hpp"
+#include "layout/Para.hpp"
+#include "layout/CR.hpp"
 #include <qbitmap.h>
 #include <qcursor.h>
 #include <qgraphicsitem.h>
@@ -43,6 +45,10 @@ void WordScene::mouseMoveEvent(QGraphicsSceneMouseEvent *e) {
     QCursor cursor;
     if (isType<RT>(hoveringItem)) {
         cursor.setShape(Qt::CursorShape::IBeamCursor);
+    } else if (isType<Para>(hoveringItem)) {
+        cursor = arrow;
+    } else if (isType<CR>(hoveringItem)) {
+        cursor = arrow;
     } else if (isType<Page>(hoveringItem)) {
         if (mousePos.x() <= static_cast<Page*>(hoveringItem)->sec->pageMagrin.left) {
             cursor = mirroredArrow;

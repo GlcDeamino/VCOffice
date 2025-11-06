@@ -9,7 +9,7 @@
         "build.py"
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/wasm"
       },
       "group": "build",
       "presentation": {

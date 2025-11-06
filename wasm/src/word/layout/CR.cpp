@@ -7,7 +7,6 @@
 
 CR::CR(WordEditor* editor) :
     p_editor(editor) {
-
 }
 
 void CR::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {

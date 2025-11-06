@@ -68,7 +68,7 @@ public:
 
     // -------- 析构 / 赋值 --------
     template<typename... Args>
-    static SealedPtr<T> create(Args&&... args) {
+    static SealedPtr<T> make(Args&&... args) {
         T* ptr = new T(std::forward<Args>(args)...);
         return SealedPtr<T>(ptr);
     }

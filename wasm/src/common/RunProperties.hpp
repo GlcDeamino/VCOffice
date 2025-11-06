@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <QColor>
 #include <qcolor.h>
+#include <qnamespace.h>
 #include <sstream>
 
 enum class SubscriptStatus : uint8_t {
@@ -25,9 +26,9 @@ enum class ShaderStatus : uint8_t {
     SOLID = 1
 };
 
-struct FontFlags {
+struct RunProperties {
 public:
-    FontFlags() = default;
+    RunProperties() = default;
     
     bool bold = false;
     bool italic = false;
@@ -37,42 +38,41 @@ public:
     bool boardered = false;
     SubscriptStatus subscriptStatus = SubscriptStatus::NONE;
     double fontSize = 10.5;
-    QColor bgColor = QColor(255, 255, 255);
+    QColor bgColor = Qt::transparent;
     QColor fgColor = QColor(0, 0, 0);
     QString font = "宋体";
 
     QString toStr() {
         QString s;
-        s.append("+-------------------------+\n");
-        s.append("|FontFlag:                |\n");
-        s.append("|  - bold:         [bol]  |\n");
-        s.append("|  - italic:       [ita]  |\n");
-        s.append("|  - underline:   [unde]  |\n");
-        s.append("|  - strike:       [sti]  |\n");
-        s.append("|  - shader:       [sha]  |\n");
-        s.append("|  - boardered:    [bor]  |\n");
-        s.append("|  - subscript:    [sub]  |\n");
-        s.append("|  - fontsize:     [fos]  |\n");
-        s.append("|  - background: [bgcol]  |\n");
-        s.append("|  - foreground: [fgcol]  |\n");
-        s.append("+-------------------------+");
+        s.append("RunProperties:\n");
+        s.append("   - bold:       [bol]\n");
+        s.append("   - italic:     [ita]\n");
+        s.append("   - underline:  [unde]\n");
+        s.append("   - strike:     [sti]\n");
+        s.append("   - shader:     [sha]\n");
+        s.append("   - boardered:  [bor]\n");
+        s.append("   - subscript:  [sub]\n");
+        s.append("   - fontsize:   [fos]\n");
+        s.append("   - font:       [font]\n");
+        s.append("   - background: [bgcol]\n");
+        s.append("   - foreground: [fgcol]");
 
         if (bold) {
-            s.replace("[bol]", " TRUE");
+            s.replace("[bol]", "TRUE");
         }
         else {
             s.replace("[bol]", "FALSE");
         }
 
         if (italic) {
-            s.replace("[ita]", " TRUE");
+            s.replace("[ita]", "TRUE");
         } else {
             s.replace("[ita]", "FALSE");
         }
 
         switch (underline) {
             case UnderlineStatus::NONE:
-                s.replace("[unde]", "  NONE");
+                s.replace("[unde]", "NONE");
             case UnderlineStatus::SINGLE:
                 s.replace("[unde]", "SINGLE");
             case UnderlineStatus::DOUBLE:
@@ -80,31 +80,31 @@ public:
             case UnderlineStatus::DOTTED:
                 s.replace("[unde]", "DOTTED");
             case UnderlineStatus::DASH:
-                s.replace("[unde]", "  DASH");
+                s.replace("[unde]", "DASH");
         }
 
         if (strikethrough) {
-            s.replace("[sti]", " TRUE");
+            s.replace("[sti]", "TRUE");
         } else {
             s.replace("[sti]", "FALSE");
         }
 
         switch (shader) {
             case ShaderStatus::NONE:
-                s.replace("[sha]", " NONE");
+                s.replace("[sha]", "NONE");
             case ShaderStatus::SOLID:
                 s.replace("[sha]", "SOLID");
         }
 
         if (boardered) {
-            s.replace("[bor]", " TRUE");
+            s.replace("[bor]", "TRUE");
         } else {
             s.replace("[bor]", "FALSE");
         }
 
         switch (subscriptStatus) {
             case SubscriptStatus::NONE:
-                s.replace("[sub]", " NONE");
+                s.replace("[sub]", "NONE");
             case SubscriptStatus::UPPER:
                 s.replace("[sub]", "UPPER");
             case SubscriptStatus::LOWER:
@@ -112,6 +112,8 @@ public:
         }
 
         s.replace("[fos]", formatDouble(fontSize));
+
+        s.replace("[font]", font);
 
         s.replace("[bgcol]", bgColor.name());
 

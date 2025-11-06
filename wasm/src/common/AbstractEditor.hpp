@@ -6,5 +6,5 @@
 class AbstractEditor : public QWidget {
 public:
     AbstractEditor() {};
-    virtual bool load(QString p) = 0;
+    virtual void load(QString p) = 0;
 };
