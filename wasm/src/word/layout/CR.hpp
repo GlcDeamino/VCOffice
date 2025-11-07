@@ -6,10 +6,12 @@
 
 class CR : public QGraphicsItem {
 public:
-    CR(WordEditor* editor);
+    CR(WordEditor* editor, bool isSoft);
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
     QRectF boundingRect() const override;
     WordEditor* p_editor;
+private:
+    bool m_is_soft;
 };
 
 #endif

@@ -18,6 +18,7 @@
 #include <qobject.h>
 #include <qpoint.h>
 #include <qthread.h>
+#include <qtmetamacros.h>
 #include <qvariant.h>
 #include <qwidget.h>
 #include <qwindowdefs.h>
@@ -53,9 +54,10 @@ public:
         return newLine;
     }
     void operator+=(QString s) {
-        if (strs.isEmpty()) {
+        if (strs.isEmpty() || newNode) {
             strs.append(s);
             map.insert(s, rts.last());
+            newNode = false;
         } else {
             QString old = strs.last();
             map.remove(old);
@@ -67,6 +69,7 @@ public:
     }
     void newRT(RichText* rt) {
         rts.append(rt);
+        newNode = true;
     }
     bool isEmpty() {
         return rts.isEmpty() || map.isEmpty() || strs.isEmpty();
@@ -88,40 +91,34 @@ public:
         }
     }
 private:
+    bool newNode = false;
     QVector<RichText*> rts;
     QHash<QString, RichText*> map;
     QVector<QString> strs;
 };
 
 
-class DecodeThread : public QThread {
-public:
-    DecodeThread(WordEditor* e) {
-        editor = e;
+void DecodeThread::run() {
+    auto r = DocxDecoder::decode(file, *editor);
+    switch (r) {
+    case DocxDecodeStatus::FAIL_OPEN_FILE:
+        emit error("解析失败", "无法打开“" + file + "”");
+    case DocxDecodeStatus::FAIL_CREATE_TMP:
+        emit error("解析失败", "无法创建缓存“" + file + ".cache”");
+    case DocxDecodeStatus::FAIL_DECOMP: 
+    case DocxDecodeStatus::FORMAT_ERROR:
+        emit error("解析失败", "文件“" + file + "”的格式不合法");
+    case DocxDecodeStatus::SUCCESS:
+        result = true;
     }
-    WordEditor* editor;
-    QString file;
-    bool result = false;
-    void run() override {
-        auto r = DocxDecoder::decode(file, *editor);
-        switch (r) {
-        case DocxDecodeStatus::FAIL_OPEN_FILE:
-            QMessageBox::critical(editor, "解析失败", "无法打开“" + file + "”", QMessageBox::Ok);
-        case DocxDecodeStatus::FAIL_CREATE_TMP:
-            QMessageBox::critical(editor, "解析失败", "无法创建缓存“" + file + ".cache”", QMessageBox::Ok);
-        case DocxDecodeStatus::FAIL_DECOMP: 
-        case DocxDecodeStatus::FORMAT_ERROR:
-            QMessageBox::critical(editor, "解析失败", "文件“" + file + "”的格式不合法", QMessageBox::Ok);
-        case DocxDecodeStatus::SUCCESS:
-            result = true;
-        }
-        QThread::sleep(1);
-    }
-};
+}
 
 
 WordEditor::WordEditor() {
     m_status = Status::NOFILE;
+    m_progress.setParent(this);
+    m_progress.setMinimum(0);
+    m_progress.setTextVisible(false);
     m_fns.setParent(this);
     m_fns.addTab(static_cast<QWidget*>(&m_stt), "Start");
     m_view.setParent(this);
@@ -129,12 +126,19 @@ WordEditor::WordEditor() {
     m_scene.setBackgroundBrush(palette().base());
     connect(&m_scene, &WordScene::mouseMoved, this, &WordEditor::updateMousePos);
     m_mouse_pos.setParent(this);
+    m_mouse_pos.setAttribute(Qt::WA_TranslucentBackground);
     setMouseTracking(true);
     m_fns.setMouseTracking(true);
     m_view.setMouseTracking(true);
     m_mouse_pos.setMouseTracking(true);
     dt = new DecodeThread(this);
     connect(dt, &QThread::finished, this, &WordEditor::onFinishDecode);
+    connect(dt, &DecodeThread::error, this, &WordEditor::decodeError);
+}
+
+void WordEditor::decodeError(QString title, QString text) {
+    m_mouse_pos.setText(title + "：" + text);
+    QMessageBox::critical(this, title, text, QMessageBox::Ok);
 }
 
 void WordEditor::load(QString p) {
@@ -143,45 +147,21 @@ void WordEditor::load(QString p) {
 
     // 初始化加载提示文本（不含动画字符）
     m_mouse_pos.setText("正在解析：" + p);
-    update();
+
+    m_progress.setMaximum(0);
 
     dt->file = p;
-
-    // 启动加载动画定时器
-    if (m_loadingTimer == nullptr) {
-        m_loadingTimer = new QTimer(this);
-        connect(m_loadingTimer, &QTimer::timeout, this, &WordEditor::updateLoadingAnimation);
-    }
-    m_loadingFrameIndex = 0;
-    m_loadingTimer->start(150); // 每150毫秒切换一次
-
-    // 连接线程结束信号：当 dt 完成时停止动画
-    connect(dt, &QThread::finished, this, &WordEditor::onFinishDecode);
-
     dt->start();
 }
 
-void WordEditor::updateLoadingAnimation() {
-    QString animChar = m_loadingChars[m_loadingFrameIndex % m_loadingChars.size()];
-    m_mouse_pos.setText("正在解析：" + dt->file + " " + animChar);
-    update(); // 触发重绘（如果 m_mouse_pos 是 QLabel 或类似控件，可能不需要 update()）
-    m_loadingFrameIndex++;
-}
-
 void WordEditor::onFinishDecode() {
-    m_loadingTimer->stop();
     m_mouse_pos.setText("正在计算布局");
-    update();
+    m_progress.setMaximum(0);
     m_status = Status::FORMATTING;
     reformat();
+    m_progress.setMaximum(m_scene.items().length());
     m_status = Status::NORMAL;
     updateMousePos(QCursor(Qt::CursorShape::ArrowCursor));
-}
-
-
-
-void WordEditor::append(OfficeItem* ctx) {
-    m_item.append(ctx);
 }
 
 void WordEditor::resizeEvent(QResizeEvent *e) {
@@ -191,7 +171,8 @@ void WordEditor::resizeEvent(QResizeEvent *e) {
     double hu = h / 32;
     m_fns.setGeometry(0, 0, w, hu * 4);
     m_view.setGeometry(0, hu * 4, w, hu * 27);
-    m_mouse_pos.setGeometry(0, hu * 31, w, hu);
+    m_progress.setGeometry(0, h - 1, w, 1);
+    m_mouse_pos.setGeometry(0, hu * 31, w, hu - 1);
 }
 
 void WordEditor::mouseMoveEvent(QMouseEvent *e) {
@@ -214,15 +195,16 @@ void WordEditor::reformat() {
     qreal defaultLineHeight = 12.0;  // 默认行高
     bool showFormattingMarks = true; // 显示格式标记开关
     qreal totalHeight = 0;
+    auto items = *m_item;
 
-    for (size_t i = 0; i < m_item.length(); /* no i++ here */) {
-        if (m_item[i] == nullptr) {
-            m_item.removeAt(i);
+    for (size_t i = 0; i < items.length(); /* no i++ here */) {
+        if (items[i] == nullptr) {
+            items.removeAt(i);
             continue; // don't increment i
         }
 
-        if (isType<Section>(m_item[i])) {
-            Section* curr_sec = static_cast<Section*>(m_item[i]);
+        if (isType<Section>(items[i])) {
+            Section* curr_sec = static_cast<Section*>(items[i]);
             qreal topUsed = curr_sec->pageMagrin.top + curr_sec->pageMagrin.header;
             qreal bottomUsed = curr_sec->pageMagrin.bottom + curr_sec->pageMagrin.footer;
             qreal pageHeight = curr_sec->pageSize.height();
@@ -276,8 +258,8 @@ void WordEditor::reformat() {
                         OfficeItem* item = (*curr_para)[k];
 
                         if (isType<LF>(item)) {
-                            CR* cr = new CR(this);
-                            cr->setPos(lastLineEndX, cursor.y());
+                            CR* cr = new CR(this, true);
+                            cr->setPos(lastLineEndX + 1, cursor.y());
                             cr->setZValue(-1);
                             m_scene.addItem(cr);
                             flushLine();
@@ -339,8 +321,8 @@ void WordEditor::reformat() {
 
                     // Add paragraph mark "↵" at the end of paragraph
                     if (showFormattingMarks) {
-                        CR* cr = new CR(this);
-                        cr->setPos(lastLineEndX, cursor.y() - currentLineHeight);
+                        CR* cr = new CR(this, false);
+                        cr->setPos(lastLineEndX + 1, cursor.y() - currentLineHeight + 1);
                         cr->setZValue(-1);
                         m_scene.addItem(cr);
                     }

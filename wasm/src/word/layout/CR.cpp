@@ -5,8 +5,9 @@
 #include <qmath.h>
 
 
-CR::CR(WordEditor* editor) :
-    p_editor(editor) {
+CR::CR(WordEditor* editor, bool isSoft) :
+    p_editor(editor), m_is_soft(isSoft) {
+        m_is_soft = isSoft;
 }
 
 void CR::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
@@ -21,7 +22,7 @@ void CR::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidge
     font.setPixelSize(12);
     painter->setPen(QColor(100, 100, 100));
     painter->setFont(font);
-    painter->drawText(QPointF(x, y), "↵");
+    painter->drawText(QPointF(x, y), m_is_soft ? "↓" : "↵");
 
     painter->restore();
 }
@@ -31,7 +32,7 @@ QRectF CR::boundingRect() const {
     font.setPixelSize(12);
 
     QFontMetricsF fm(font);
-    QRectF textBound = fm.boundingRect("↵");
+    QRectF textBound = fm.boundingRect(m_is_soft ? "↓" : "↵");
     
     qreal w = textBound.width();
     qreal h = textBound.height();

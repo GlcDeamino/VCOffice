@@ -1,5 +1,6 @@
 #include "docx_decoder.hpp"
 #include <RunProperties.hpp>
+#include "OfficeItem.hpp"
 #include "WordEditor.hpp"
 #include "decompressor.hpp"
 #include <QDir>
@@ -7,6 +8,7 @@
 #include <QFile>
 #include <QDomDocument>
 #include <QColor>
+#include <qcontainerfwd.h>
 #include <qdom.h>
 #include <qlogging.h>
 #include <qnamespace.h>
@@ -240,6 +242,9 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
         return DocxDecodeStatus::FAIL_OPEN_FILE;
     }
 
+    QVector<OfficeItem*>* item = new QVector<OfficeItem*>();
+    editor.m_item = item;
+
     QDomDocument docDom;
     if (!docDom.setContent(&docFile)) {
         qCritical() << "[Decoder] XML format error in:" << docFile.fileName();
@@ -317,7 +322,7 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
 
         } else if (node.nodeName() == "w:sectPr") {
             // 遇到分节符：提交当前节，创建新节
-            editor.append(currentSection);
+            item->append(currentSection);
             currentSection = new Section();
             parseSectionProperties(node, currentSection);
         }
@@ -325,6 +330,6 @@ DocxDecodeStatus DocxDecoder::decode(QString p, WordEditor& editor) {
     }
 
     // 提交最后一个节
-    editor.append(currentSection);
+    item->append(currentSection);
     return DocxDecodeStatus::SUCCESS;
 }
